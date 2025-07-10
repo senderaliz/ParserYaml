@@ -1,199 +1,232 @@
-#include "Parser.h"
+#include "YamlParser.h"
 #include <unordered_map>
 #include <vector>
-#include <iostream>//Debugging
+#include "Tools/Assert.h"
 
-void readingLine(int& position, const int& length, const std::string& stringConfig, std::string& line)
+void ReadingLine(int& position, const int& length, const std::string& StringConfig, std::string& Line)
 {
-	int lineStart = position;
-	int lineEnd;
-	line.clear();
+   int lineStart = position;
+   int lineEnd;
+   Line.clear();
 
-	while (position < length && stringConfig[position] != '\n')
-	{
-		position++;
-	}
-	lineEnd = position;
+   while (position < length && StringConfig[position] != '\n') {
+      position++;
+   }
+   lineEnd = position;
 
-	for (int i = lineStart; i < lineEnd; i++)
-	{
-		line += stringConfig[i];
-	}
+   for (int i = lineStart; i < lineEnd; i++) {
+      Line += StringConfig[i];
+   }
 
-	if (position < length && stringConfig[position] == '\n')
-	{
-		position++;
-	}
+   if (position < length && StringConfig[position] == '\n') {
+      position++;
+   }
 }
 
 
-bool skipEmptyLines(const std::string& line)
+bool ShouldSkipLine(const std::string& Line)
 {
-	for (int i = 0; i <line.size(); i++)
-	{
-		char c = line[i];
+   for (int i = 0; i < Line.size(); i++) {
+      char c = Line[i];
 
-		if (c == ' ' || c == '\t')
-		{
-			continue;
-		}
+      if (c == ' ' || c == '\t') {
+         continue;
+      }
 
-		if (c == '#')
-		{
-			return true;
-		}
+      if (c == '#') {
+         return true;
+      }
 
-		return false;
-	}
-	return true;
+      return false;
+   }
+   return true;
 }
 
 
-int countIndent(const std::string& line)
+int CountIndentation(const std::string& Line)
 {
-	int count = 0;
+   int count = 0;
 
-	while (count < line.size() && line[count] == ' ')
-	{
-		count++;
-	}
+   while (count < Line.size() && Line[count] == ' ') {
+      count++;
+   }
 
-	return count / 2;
+   return count / 2;
 }
 
 
-void DeterminingNestingLevel(std::string line, std::vector<std::string>& vectorKey, int& indent)
+void DetermineNestingLevel(std::string Line, std::vector<std::string>& VectorKey, int& indent)
 {
-	indent = countIndent(line);
-
-	if (vectorKey.size() > indent)
-	{
-		vectorKey.resize(indent);
-	}
-
+   indent = CountIndentation(Line);
+   if (indent > VectorKey.size()) {
+      ASSERT(!"Error");
+   }
+   if (VectorKey.size() > indent) {
+      VectorKey.resize(indent);
+   }
 }
 
-static bool skipNewLine(char symbol)
+
+static bool SkipNewLine(char symbol)
 {
-	return symbol == '\n';
+   return symbol == '\n';
 }
 
-static bool skipSpace(char symbol)
+
+static bool SkipSpace(char symbol)
 {
-	return symbol == ' ';
+   return symbol == ' ';
 }
 
-void skipCharacters(int& position, const int& length, const std::string& stringConfig)
+
+void SkipWhiteSpaces(int& position, const int& length, const std::string& StringConfig)
 {
-	while (position < length && (skipSpace(stringConfig[position]) || skipNewLine(stringConfig[position])))
-	{
-		position++;
-	}
+   while (position < length && (SkipSpace(StringConfig[position]) || SkipNewLine(StringConfig[position]))) {
+      position++;
+   }
 }
 
-void keyReader(int& position, const std::string& line, std::string& key)
+
+void KeyReader(int& position, const std::string& line, std::string& key)
 {
-	while (position < line.size() && line[position] != ':' && line[position] != '\n')
-	{
-		if (!skipSpace(line[position]))
-		{
-			key += line[position];
-		}
-		position++;
-	}
+   while (position < line.size() && line[position] != ':' && line[position] != '\n') {
+      if (!SkipSpace(line[position])) {
+         key += line[position];
+      }
+      position++;
+   }
 }
 
-void skipColon(int& position, const std::string& line)
+
+void SkipColon(int& position, const std::string& Line)
 {
-	if (position < line.size() && line[position] == ':')
-	{
-		position++;
-	}
+   if (position < Line.size() && Line[position] == ':') {
+      position++;
+   }
 }
 
-void skipCharactersLine(int& position, const std::string& line)
+
+void SkipLineWhiteSpaces(int& position, const std::string& Line)
 {
-	while (position < line.size() && (skipSpace(line[position]) || skipNewLine(line[position])))
-	{
-		position++;
-	}
+   while (position < Line.size() && (SkipSpace(Line[position]) || SkipNewLine(Line[position]))) {
+      position++;
+   }
 }
 
-void valueReader(int& position, const std::string& line, std::string& value)
+
+void ValueReader(int& position, const std::string& Line, std::string& Value)
 {
-	while (position < line.size())
-	{
-		if (!(value.empty() && skipSpace(line[position])))
-		{
-			value += line[position];
-		}
-		position++;
-	}
+   while (position < Line.size()) {
+      if (!(Value.empty() && SkipSpace(Line[position]))) {
+         Value += Line[position];
+      }
+      position++;
+   }
 }
 
-void addHash(std::string& key, std::unordered_map<std::string, std::string>& hashConfig, std::string& value)
+
+void AddToConfigMap(std::string& Key, std::unordered_map<std::string, std::string>& HashConfig, std::string& Value)
 {
-	if (!key.empty() && !value.empty())
-	{
-		hashConfig[key] = value;
-	}
+   if (!Key.empty() && !Value.empty()) {
+      if (HashConfig.count(Key) != 0) {
+         ASSERT(!"Error");
+      }
+      HashConfig[Key] = Value;
+   }
 }
 
-void ParsingProcess(int& sumIndents, std::string line, std::vector<std::string>& vectorKey, std::unordered_map<std::string, std::string>& hashConfig)
+
+void ParseLine(int& currentIndentLevel, std::string Line, std::vector<std::string>& VectorKey, std::unordered_map<std::string, std::string>& HashConfig)
 {
-	int localPos = sumIndents * 2;
-	std::string key, value;
-	keyReader(localPos, line, key);
-	skipColon(localPos, line);
-	skipCharactersLine(localPos, line);
-	valueReader(localPos, line, value);
+   int localPos = currentIndentLevel * 2;
+   std::string Key, Value;
+   KeyReader(localPos, Line, Key);
+   SkipColon(localPos, Line);
+   SkipLineWhiteSpaces(localPos, Line);
+   ValueReader(localPos, Line, Value);
 
-	vectorKey.push_back(key);
+   if (VectorKey.size() > currentIndentLevel) {
+      VectorKey.resize(currentIndentLevel);
+   } else if (VectorKey.size() < currentIndentLevel) {
+      ASSERT(!"Error");
+   }
 
-	if (!value.empty())
-	{
-		std::string fullKey;
+   VectorKey.push_back(Key);
 
-		for (int i = 0; i < vectorKey.size(); i++)
-		{
-			if (i > 0)
-			{
-				fullKey += ".";
-			}
-			fullKey += vectorKey[i];
-		}
+   std::string FullKey;
+   for (int i = 0; i < VectorKey.size(); i++) {
+      if (i > 0)
+         FullKey += ".";
+      FullKey += VectorKey[i];
+   }
 
-		addHash(fullKey, hashConfig, value);
-		std::cout << "key [" << fullKey << "] value [" << value << "]" << std::endl; //Debugging
-		vectorKey.pop_back();
-	}
+   if (Value.empty()) {
+      if (HashConfig.count(FullKey) != 0) {
+         ASSERT(!"Duplicate section key");
+      }
+      return;
+   }
+
+   AddToConfigMap(FullKey, HashConfig, Value);
+
+   VectorKey.pop_back();
 }
 
-std::unordered_map<std::string, std::string> YamlParser::parse(const std::string& stringConfig)
+
+std::unordered_map<std::string, std::string> YamlParser::Parse(const std::string& StringConfig)
 {
-	std::unordered_map<std::string, std::string> hashConfig;
-	std::vector<std::string> vectorKey;
+   configMap.clear();
+   std::vector<std::string> VectorKey;
 
-	int position = 0;
-	const int length = stringConfig.length();
-	const std::string this_stringConfig = stringConfig;
-	int sumIndents;
-	std::string line;
+   int position = 0;
+   const int length = StringConfig.length();
+   const std::string This_stringConfig = StringConfig;
+   int sumIndents;
+   std::string Line;
 
-	while (position < length)
-	{
-		readingLine(position, length, this_stringConfig, line);
+   while (position < length) {
+      ReadingLine(position, length, This_stringConfig, Line);
 
-		if (skipEmptyLines(line))
-		{
-			continue;
-		}
+      if (ShouldSkipLine(Line)) {
+         continue;
+      }
 
-		DeterminingNestingLevel(line, vectorKey, sumIndents);
+      DetermineNestingLevel(Line, VectorKey, sumIndents);
 
-		ParsingProcess(sumIndents, line, vectorKey, hashConfig);
+      ParseLine(sumIndents, Line, VectorKey, configMap);
+   }
 
-	}
+   return configMap;
+}
 
-	return hashConfig;
+
+std::unordered_map<std::string, std::string>& YamlParser::GetConfigMap()
+{
+   return configMap;
+}
+
+
+std::string YamlParser::GetValue(const std::string& key)
+{
+   auto it = configMap.find(key);
+   if (it != configMap.end()) {
+      return it->second;
+   } else {
+      return "";
+   }
+}
+
+
+std::string YamlParser::SettingValue(const std::string& key, std::string value)
+{
+   return configMap[key] = value;
+}
+
+
+bool YamlParser::HasKey(std::string& key)
+{
+   if (configMap.count(key) != 0) {
+      return true;
+   }
+   return false;
 }
